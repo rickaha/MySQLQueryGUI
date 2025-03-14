@@ -18,7 +18,7 @@ find_library(MYSQLCPPCONN_LIBRARY mysqlcppconn
 include_directories(${MYSQLCPPCONN_INCLUDE_DIR})
 
 # Source files
-add_executable(MySQLQueryGUI MySQLQueryGUI.cpp)
+add_executable(MySQLQueryGUI mysqlquerygui.cpp)
 
 # Link libraries
 target_link_libraries(MySQLQueryGUI

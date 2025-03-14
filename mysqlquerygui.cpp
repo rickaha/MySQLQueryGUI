@@ -7,12 +7,13 @@
 #include <cppconn/exception.h>
 #include <cppconn/resultset.h>
 #include <cppconn/statement.h>
+#include <memory>
 
 class MySQLQueryGUI : public QMainWindow {
 private:
     // Database connection components
     sql::Driver *driver;
-    sql::Connection *connection;
+    std::unique_ptr<sql::Connection> connection;
     bool isConnected;
 
     // Connection widgets
@@ -112,7 +113,6 @@ public:
     ~MySQLQueryGUI() {
         if (connection) {
             connection->close();
-            delete connection;
         }
     }
 
@@ -130,7 +130,7 @@ private slots:
             driver = get_driver_instance();
 
             std::string connString = "tcp://" + host + ":" + port;
-            connection = driver->connect(connString, user, password);
+            connection.reset(driver->connect(connString, user, password));
 
             if (!dbName.empty()) {
                 connection->setSchema(dbName);
@@ -152,8 +152,6 @@ private slots:
     void disconnectFromDatabase() {
         if (connection) {
             connection->close();
-            delete connection;
-            connection = nullptr;
         }
 
         isConnected = false;
@@ -180,7 +178,7 @@ private slots:
         }
 
         try {
-            sql::Statement *stmt = connection->createStatement();
+            std::unique_ptr<sql::Statement> stmt(connection->createStatement());
 
             // Check if it's a SELECT query
             bool isSelect = query.substr(0, 6) == "SELECT" ||
@@ -190,7 +188,7 @@ private slots:
 
             if (isSelect) {
                 // Execute SELECT query and display results
-                sql::ResultSet *res = stmt->executeQuery(query);
+                std::shared_ptr<sql::ResultSet> res(stmt->executeQuery(query));
 
                 // Get column metadata
                 sql::ResultSetMetaData *meta = res->getMetaData();
@@ -213,8 +211,6 @@ private slots:
                     }
                     row++;
                 }
-
-                delete res;
                 QMessageBox::information(this, "Query Success",
                                         QString("Query executed successfully. %1 rows returned.").arg(row));
             } else {
@@ -223,8 +219,6 @@ private slots:
                 QMessageBox::information(this, "Query Success",
                                         QString("Query executed successfully. %1 rows affected.").arg(affectedRows));
             }
-
-            delete stmt;
         } catch (sql::SQLException &e) {
             QMessageBox::critical(this, "Query Error",
                                   QString("Error executing query: %1\nError code: %2").arg(e.what()).arg(e.getErrorCode()));
